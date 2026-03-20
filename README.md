@@ -308,10 +308,4 @@ If you'd like to contribute to **utilcpp**, you can:
 -  Improve existing functions
 -  Optimize performance
 -  Improve documentation
-
-### How to contribute
-
-1. Fork the repository
-2. Create a new branch:
-   ```bash
-   git checkout -b feature/your-feature-name
+9
