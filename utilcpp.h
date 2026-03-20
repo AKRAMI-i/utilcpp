@@ -3,7 +3,6 @@
 #include <cctype>
 #include <locale>
 #include <vector>
-#include <Windows.h>
 #include <cstdint>
 #include <algorithm>
 
@@ -147,41 +146,65 @@ namespace utility {
     {
 
         // UTF-8 DECODE function
-        inline std::vector<uint32_t> utf8_to_codepoints(const std::string& str) {
-            std::vector<uint32_t> result;
+       inline std::vector<uint32_t> utf8_to_codepoints(const std::string& str) {
+    std::vector<uint32_t> result;
+    size_t i = 0;
+    while (i < str.size()) {
+        uint32_t cp = 0;
+        unsigned char c = str[i];
 
-            for (size_t i = 0; i < str.size();) {
-                uint32_t cp = 0;
-                unsigned char c = str[i];
-
-                if ((c >> 7) == 0) {
-                    cp = c;
-                    i += 1;
-                }
-                else if ((c >> 5) == 0b110) {
-                    cp = ((c & 0x1F) << 6) |
-                        (str[i + 1] & 0x3F);
-                    i += 2;
-                }
-                else if ((c >> 4) == 0b1110) {
-                    cp = ((c & 0x0F) << 12) |
-                        ((str[i + 1] & 0x3F) << 6) |
-                        (str[i + 2] & 0x3F);
-                    i += 3;
-                }
-                else {
-                    cp = ((c & 0x07) << 18) |
-                        ((str[i + 1] & 0x3F) << 12) |
-                        ((str[i + 2] & 0x3F) << 6) |
-                        (str[i + 3] & 0x3F);
-                    i += 4;
-                }
-
-                result.push_back(cp);
+        if ((c >> 7) == 0) {
+            // 1-byte ASCII
+            cp = c;
+            i += 1;
+        } else if ((c >> 5) == 0b110) {
+            // 2-byte sequence
+            if (i + 1 >= str.size() || (str[i+1] & 0xC0) != 0x80) {
+                // invalid continuation, skip
+                cp = 0xFFFD; // Replacement character
+                i += 1;
+            } else {
+                cp = ((c & 0x1F) << 6) | (str[i+1] & 0x3F);
+                i += 2;
             }
-
-            return result;
+        } else if ((c >> 4) == 0b1110) {
+            // 3-byte sequence
+            if (i + 2 >= str.size() ||
+                (str[i+1] & 0xC0) != 0x80 ||
+                (str[i+2] & 0xC0) != 0x80) {
+                cp = 0xFFFD;
+                i += 1;
+            } else {
+                cp = ((c & 0x0F) << 12) |
+                     ((str[i+1] & 0x3F) << 6) |
+                     (str[i+2] & 0x3F);
+                i += 3;
+            }
+        } else if ((c >> 3) == 0b11110) {
+            // 4-byte sequence
+            if (i + 3 >= str.size() ||
+                (str[i+1] & 0xC0) != 0x80 ||
+                (str[i+2] & 0xC0) != 0x80 ||
+                (str[i+3] & 0xC0) != 0x80) {
+                cp = 0xFFFD;
+                i += 1;
+            } else {
+                cp = ((c & 0x07) << 18) |
+                     ((str[i+1] & 0x3F) << 12) |
+                     ((str[i+2] & 0x3F) << 6) |
+                     (str[i+3] & 0x3F);
+                i += 4;
+            }
+        } else {
+            // invalid leading byte
+            cp = 0xFFFD;
+            i += 1;
         }
+
+        result.push_back(cp);
+    }
+    return result;
+}
 
 		// UTF-8 ENCODE function
         inline std::string codepoints_to_utf8(const std::vector<uint32_t>& cps) {
